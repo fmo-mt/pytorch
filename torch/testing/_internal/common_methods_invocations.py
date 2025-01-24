@@ -4724,6 +4724,25 @@ def sample_inputs_glu(self, device, dtype, requires_grad, **kwargs):
             if dim_size > 0 and dim_size % 2 == 0:
                 yield SampleInput(input_tensor, dim)
 
+def sample_inputs_swiglu(self, device, dtype, requires_grad, **kwargs):
+    features_options = [[2], [2, 4], [8, 8], [8, 6, 8], [4, 4, 6, 10]]
+    batch_options: list[list[int]] = [
+        [],  # no batch
+        [0],
+        [8],
+        [2, 4],
+    ]
+    create_tensor = partial(make_tensor, device=device, dtype=dtype,
+                            requires_grad=requires_grad, low=-2, high=2)
+
+    for features, batch_shape in itertools.product(features_options, batch_options):
+        ndim = len(features) + len(batch_shape)
+        for dim in range(ndim):
+            input_tensor = create_tensor(batch_shape + features)
+            dim_size = input_tensor.size(dim)
+            if dim_size > 0 and dim_size % 2 == 0:
+                yield SampleInput(input_tensor, dim)
+
 def sample_inputs_interpolate(mode, self, device, dtype, requires_grad, **kwargs):
     N, C = 2, 3
     D = 4
@@ -11506,12 +11525,6 @@ def reference_group_norm(inp: npt.NDArray, num_groups: int, weight=None, bias=No
     return Y
 
 
-def reference_swiglu(inp: npt.NDArray, dim=-1):
-    chunks = np.split(inp, 2, dim)
-    result = chunks[0] * scipy.special.expit(chunks[1])
-    return result
-
-
 # using a custom reference function since numpy only has a string side arg (instead of right and side) and doesn't
 # have an out_int32 arg. Additionally, numpy doesn't support searchsorted with ND arrays, so this splits those into
 # stacked 1D cases
@@ -16061,6 +16074,15 @@ op_db: list[OpInfo] = [
            supports_forward_ad=True,
            supports_fwgrad_bwgrad=True,
            supports_out=False),
+    OpInfo('nn.functional.swiglu',
+           aten_name='swiglu',
+           # Runs very slowly on slow gradcheck - alternatively reduce input sizes
+           gradcheck_fast_mode=True,
+           sample_inputs_func=sample_inputs_swiglu,
+           dtypes=floating_types_and(torch.bfloat16, torch.float16),
+           supports_forward_ad=True,
+           supports_fwgrad_bwgrad=True,
+           supports_out=False),
     UnaryUfuncInfo(
         'nn.functional.elu',
         aten_backward_name='elu_backward',
@@ -16426,17 +16448,6 @@ op_db: list[OpInfo] = [
             DecorateInfo(unittest.skip("Skipped!"),
                          'TestUnaryUfuncs', 'test_reference_numerics_extremal',
                          dtypes=(torch.complex64,)))),
-    UnaryUfuncInfo(
-        'nn.functional.swiglu',
-        aten_name='swiglu',
-        ref=reference_swiglu,
-        dtypes=floating_types_and(torch.bfloat16, torch.float16),
-        supports_out=False,
-        supports_forward_ad=True,
-        supports_autograd=True,
-        supports_fwgrad_bwgrad=True,
-        assert_autodiffed=True,
-    ),
     UnaryUfuncInfo(
         'nn.functional.hardsigmoid',
         aten_backward_name='hardsigmoid_backward',

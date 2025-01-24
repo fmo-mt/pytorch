@@ -1216,7 +1216,7 @@ def module_inputs_torch_nn_SwiGLU(module_info, device, dtype, requires_grad, tra
             reference_fn=swiglu_reference_fn),
         ModuleInput(
             constructor_input=FunctionInput(),
-            forward_input=FunctionInput(make_input((128, 5, 4))),
+            forward_input=FunctionInput(make_input((128, 10, 4))),
             desc='1d_elementwise_affine_large_batch',
             reference_fn=swiglu_reference_fn),
         ModuleInput(

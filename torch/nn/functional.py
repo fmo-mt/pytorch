@@ -1750,8 +1750,7 @@ def swiglu(input: Tensor, dim: Optional[int] = -1):
     See :class:`~torch.nn.SwiGLU` for more details.
     """
     if has_torch_function_unary(input):
-        return handle_torch_function(
-            swiglu, (input,), input, dim)
+        return handle_torch_function(swiglu, (input,), input, dim)
     return torch.swiglu(input, dim)
 
 
